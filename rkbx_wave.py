@@ -15,10 +15,10 @@ from __future__ import annotations
 
 import sys
 
-# Windows-only check
-if sys.platform != "win32":
-    print("Error: rkbx_wave is Windows-only due to rkbx_link.exe dependency.")
-    print("This application requires Windows to communicate with Rekordbox.")
+# Windows-only check relaxed for macOS
+if sys.platform not in ("win32", "darwin"):
+    print("Error: rkbx_wave is primarily designed for Windows and macOS.")
+    print(f"Unsupported platform: {sys.platform}")
     sys.exit(1)
 
 import json
@@ -47,8 +47,8 @@ from rb_waveform_core.playhead import reset_prerender_cache
 from rb_waveform_core.rkbx_link_listener import DeckEvent, RekordboxLinkListener
 
 
-LIBRARY_SEARCH_ROOT: Optional[Path] = Path(r"C:\Rekordbox")
-if not LIBRARY_SEARCH_ROOT.is_dir():
+LIBRARY_SEARCH_ROOT: Optional[Path] = Path(r"C:\Rekordbox") if sys.platform == "win32" else Path.home() / "Music"
+if LIBRARY_SEARCH_ROOT and not LIBRARY_SEARCH_ROOT.is_dir():
     LIBRARY_SEARCH_ROOT = None
 
 
@@ -98,8 +98,11 @@ class ToolTip:
             self.tip_window = None
 
 
-# User config directory in AppData
-USER_CONFIG_DIR = Path(os.environ.get("APPDATA", Path.home())) / "rkbx_wave"
+# User config directory
+if sys.platform == "darwin":
+    USER_CONFIG_DIR = Path.home() / "Library" / "Application Support" / "rkbx_wave"
+else:
+    USER_CONFIG_DIR = Path(os.environ.get("APPDATA", Path.home())) / "rkbx_wave"
 USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 LAST_CONFIG_PATH = USER_CONFIG_DIR / "last_config.txt"
 USER_DEFAULT_CONFIG_PATH = USER_CONFIG_DIR / "default_config.json"
@@ -168,19 +171,29 @@ class WaveformSyncApp:
         self.root = root
         self.root.title("WaveformSync - Dual Deck Display")
         
-        # Start rkbx_link.exe
-        rkbx_link_dir, rkbx_link_exe = _get_rkbx_link_path()
-        if not rkbx_link_exe.exists():
-            messagebox.showerror(
-                "Missing Dependency",
-                f"rkbx_link.exe not found at:\n{rkbx_link_exe}\n\n"
-                "Please ensure the package was installed correctly."
+        self.rkbx_link_proc = None
+        if sys.platform == "win32":
+            # Start rkbx_link.exe on Windows
+            rkbx_link_dir, rkbx_link_exe = _get_rkbx_link_path()
+            if not rkbx_link_exe.exists():
+                messagebox.showerror(
+                    "Missing Dependency",
+                    f"rkbx_link.exe not found at:\n{rkbx_link_exe}\n\n"
+                    "Please ensure the package was installed correctly."
+                )
+                sys.exit(1)
+            self.rkbx_link_proc = subprocess.Popen(
+                [str(rkbx_link_exe)],
+                cwd=str(rkbx_link_dir)
             )
-            sys.exit(1)
-        self.rkbx_link_proc = subprocess.Popen(
-            [str(rkbx_link_exe)],
-            cwd=str(rkbx_link_dir)
-        )
+        else:
+            # On macOS, show a one-time info dialog if it's the first time running
+            if not LAST_CONFIG_PATH.exists():
+                messagebox.showinfo(
+                    "macOS Setup",
+                    "On macOS, rkbx_wave requires rkbx_link to be installed and running separately.\n\n"
+                    "Please ensure rkbx_link is running and configured to send OSC to 127.0.0.1:4460."
+                )
         
         # Shared config (loaded from file)
         self.color_cfg: WaveformColorConfig = DEFAULT_COLOR_CONFIG
@@ -652,7 +665,10 @@ class WaveformSyncApp:
     
     def _start_link_listener(self) -> None:
         """Start Rekordbox Link listener for deck 0."""
-        self.link_listener = RekordboxLinkListener()
+        self.link_listener = RekordboxLinkListener(
+            ip=self.render_cfg.osc_ip,
+            port=self.render_cfg.osc_port
+        )
         self.link_listener.start()
         self.link_status_var.set(f"RB Link: listening on {self.link_listener.port}")
         self._schedule_link_poll()

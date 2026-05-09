@@ -73,6 +73,8 @@ class WaveformRenderConfig:
 	overview_low_gain: float = 1.0
 	overview_mid_gain: float = 1.0
 	overview_high_gain: float = 1.0
+	osc_ip: str = "127.0.0.1"
+	osc_port: int = 4460
 
 
 DEFAULT_COLOR_CONFIG = WaveformColorConfig()
@@ -148,6 +150,8 @@ def config_to_dict(color_cfg: WaveformColorConfig, render_cfg: WaveformRenderCon
 			"overview_low_gain": render_cfg.overview_low_gain,
 			"overview_mid_gain": render_cfg.overview_mid_gain,
 			"overview_high_gain": render_cfg.overview_high_gain,
+			"osc_ip": render_cfg.osc_ip,
+			"osc_port": render_cfg.osc_port,
 		}
 	}
 
@@ -207,6 +211,8 @@ def dict_to_config(data: dict) -> tuple[WaveformColorConfig, WaveformRenderConfi
 		overview_low_gain=render_data.get("overview_low_gain", DEFAULT_RENDER_CONFIG.overview_low_gain),
 		overview_mid_gain=render_data.get("overview_mid_gain", render_data.get("overview_midhigh_gain", DEFAULT_RENDER_CONFIG.overview_mid_gain)),
 		overview_high_gain=render_data.get("overview_high_gain", DEFAULT_RENDER_CONFIG.overview_high_gain),
+		osc_ip=render_data.get("osc_ip", DEFAULT_RENDER_CONFIG.osc_ip),
+		osc_port=render_data.get("osc_port", DEFAULT_RENDER_CONFIG.osc_port),
 	)
 	
 	return color_cfg, render_cfg

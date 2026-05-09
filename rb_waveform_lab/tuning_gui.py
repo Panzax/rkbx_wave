@@ -81,8 +81,8 @@ DEFAULT_DECK_PATH = Path(
     r"C:/Users/chris/AppData/Roaming/Pioneer/rekordbox/share/PIONEER/USBANLZ/a82/484d8-6208-4fd8-9406-4393f48abd78"
 )
 
-LIBRARY_SEARCH_ROOT: Optional[Path] = Path(r"C:\Rekordbox")
-if not LIBRARY_SEARCH_ROOT.is_dir():
+LIBRARY_SEARCH_ROOT: Optional[Path] = Path(r"C:\Rekordbox") if sys.platform == "win32" else Path.home() / "Music"
+if LIBRARY_SEARCH_ROOT and not LIBRARY_SEARCH_ROOT.is_dir():
     LIBRARY_SEARCH_ROOT = None
 
 

@@ -3,3 +3,7 @@ rb_waveform_lab/__pycache__/
 rb_waveform_core/__pycache__/
 TEST/
 __pycache__
+.specstory/
+rkbx_wave.egg-info
+.vscode/settings.json
+.cursorindexingignore

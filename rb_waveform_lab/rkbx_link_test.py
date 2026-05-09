@@ -56,11 +56,13 @@ def format_event(event: DeckEvent, fields: Iterable[str]) -> str:
 
 
 def main() -> None:
-    rkbx_link_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'rkbx_link'))
-    rkbx_link_proc = subprocess.Popen(
-        [os.path.join(rkbx_link_dir, 'rkbx_link.exe')],
-        cwd=rkbx_link_dir  # Set working directory!
-    )
+    rkbx_link_proc = None
+    if sys.platform == "win32":
+        rkbx_link_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'rkbx_link'))
+        rkbx_link_proc = subprocess.Popen(
+            [os.path.join(rkbx_link_dir, 'rkbx_link.exe')],
+            cwd=rkbx_link_dir  # Set working directory!
+        )
     try:
         listener = RekordboxLinkListener()
         listener.start()
@@ -83,8 +85,9 @@ def main() -> None:
             listener.stop()
             time.sleep(0.1)
     finally:
-        rkbx_link_proc.terminate()
-        rkbx_link_proc.wait()
+        if rkbx_link_proc is not None:
+            rkbx_link_proc.terminate()
+            rkbx_link_proc.wait()
 
 if __name__ == "__main__":
     main()

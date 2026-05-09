@@ -14,7 +14,11 @@ def scan(root: str, max_files: int = 10):
     for folder in root_path.rglob("*.2EX"):
         anlz_folder = folder.parent
         try:
-            result = analyze_anlz_folder(anlz_folder,lib_folder=Path(r"C:\Rekordbox"))
+            lib_folder = Path(r"C:\Rekordbox") if sys.platform == "win32" else Path.home() / "Music"
+            if lib_folder and lib_folder.is_dir():
+                result = analyze_anlz_folder(anlz_folder, lib_folder=lib_folder)
+            else:
+                result = analyze_anlz_folder(anlz_folder)
             wf_shape = result.waveform.shape if result.waveform is not None else None
             dur_calc=wf_shape[0]/150
             print(f"{count+1}. {anlz_folder.name}")

@@ -111,11 +111,12 @@ class RekordboxLinkListener:
         self._queue: "Queue[DeckEvent]" = Queue()
         self._state: Dict[int, DeckState] = {deck: DeckState(deck=deck) for deck in self.decks}
 
+        # rkbx_link uses deck-first OSC addresses: /{deck}/time, /{deck}/track/anlz_path, etc.
         for deck in self.decks:
-            self._dispatcher.map(f"/time/{deck}", self._handle_time)
-            self._dispatcher.map(f"/track/{deck}/anlz_path", self._handle_anlz_path)
-            self._dispatcher.map(f"/bpm/{deck}/current", self._handle_bpm_current)
-            self._dispatcher.map(f"/bpm/{deck}/original", self._handle_bpm_original)
+            self._dispatcher.map(f"/{deck}/time", self._handle_time)
+            self._dispatcher.map(f"/{deck}/track/anlz_path", self._handle_anlz_path)
+            self._dispatcher.map(f"/{deck}/bpm/current", self._handle_bpm_current)
+            self._dispatcher.map(f"/{deck}/bpm/original", self._handle_bpm_original)
 
         self._server: Optional[osc_server.ThreadingOSCUDPServer] = None
         self._thread: Optional[threading.Thread] = None
@@ -240,9 +241,11 @@ class RekordboxLinkListener:
 
     @staticmethod
     def _deck_from_address(address: str) -> Optional[int]:
+        # rkbx_link uses deck-first addresses (/{deck}/time, /{deck}/bpm/current, ...)
+        # so the deck number is the first path component after the leading slash.
         try:
             parts = address.strip("/").split("/")
-            return int(parts[1])
+            return int(parts[0])
         except (IndexError, ValueError):
             return None
 

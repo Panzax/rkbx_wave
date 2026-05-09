@@ -74,9 +74,6 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Operating System :: Microsoft :: Windows",
-        "Environment :: Win32 (MS Windows)",
+        "Operating System :: MacOS :: MacOS X",
     ],
-    
-    # Platform restriction
-    platforms=["win32"],
 )
