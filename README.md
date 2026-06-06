@@ -35,6 +35,8 @@ Real-time waveform display for Rekordbox DJ with zoom levels beyond the standard
 - **Rekordbox 7.2.2** 
 ([click on "I want to use previous rekordbox ver. 7." in the FAQ](https://rekordbox.com/en/support/faq/v7/))
 
+> **macOS (Apple Silicon, Rekordbox 7.2.8):** see [SETUP_MACOS.md](SETUP_MACOS.md) for a bundled, no-Rust setup with a `start.sh` launcher.
+
 ## Installation
 
 ### From GitHub Releases (Recommended)
