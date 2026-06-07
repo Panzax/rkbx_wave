@@ -7,22 +7,33 @@ bundled in [dist/rkbx_link/](dist/rkbx_link/), so you do not need Rust.
 
 - Apple Silicon Mac (M-series)
 - Rekordbox **7.2.8** (this is the only version the bundled offsets support)
-- Python 3.9+
+- Python **3.10+** (3.10 is the tested version; the pinned numpy/scipy have no wheels for older versions)
 
 ## One-time setup
 
 ### 1. Python environment
 
-From the repo root:
+First check your Python version:
 
 ```bash
-python3 -m venv .venv
+python3 --version
+```
+
+If it is older than 3.10, install a newer one (e.g. `brew install python@3.10`,
+or from [python.org](https://www.python.org/downloads/macos/)). You can then
+use `python3.10` explicitly below.
+
+From the repo root, create the venv with a 3.10+ interpreter:
+
+```bash
+python3.10 -m venv .venv      # or: python3 -m venv .venv (if python3 is >= 3.10)
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-The launcher uses `./.venv` by default. To use a different interpreter
-(e.g. a conda env), set `RKBX_WAVE_PYTHON=/path/to/python` before running it.
+The launcher uses `./.venv` by default and refuses to start if that interpreter
+is older than 3.10. To use a different interpreter (e.g. a conda env), set
+`RKBX_WAVE_PYTHON=/path/to/python` before running it.
 
 ### 2. Re-sign Rekordbox
 

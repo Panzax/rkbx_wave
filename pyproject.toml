@@ -7,7 +7,7 @@ name = "rkbx_wave"
 version = "1.0.0"
 description = "Dual deck waveform display for Rekordbox with live sync via rkbx_link"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 authors = [
     {name = "mrmilbe"}
@@ -17,7 +17,6 @@ classifiers = [
     "Intended Audience :: End Users/Desktop",
     "Topic :: Multimedia :: Sound/Audio",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",

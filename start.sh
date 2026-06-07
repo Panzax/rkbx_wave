@@ -37,6 +37,12 @@ fail() {
 [ -f "$OFFSETS" ] || fail "Rekordbox offsets not found at: $OFFSETS"
 [ -x "$PY" ] || fail "Python interpreter not found at: $PY (create ./.venv or set RKBX_WAVE_PYTHON)"
 
+# Require Python 3.10+ (pinned numpy/scipy and Pillow 12 have no older wheels).
+if ! "$PY" -c 'import sys; sys.exit(0 if sys.version_info[:2] >= (3, 10) else 1)' 2>/dev/null; then
+    PY_VER="$("$PY" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo "unknown")"
+    fail "Python 3.10+ required, but $PY is $PY_VER. Recreate the venv with python3.10 (see SETUP_MACOS.md)."
+fi
+
 # ---------------------------------------------------------------------------
 # Process lifecycle
 # ---------------------------------------------------------------------------
