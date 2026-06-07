@@ -13,27 +13,31 @@ bundled in [dist/rkbx_link/](dist/rkbx_link/), so you do not need Rust.
 
 ### 1. Python environment
 
-First check your Python version:
+You need Python 3.10+. Use whichever of the two options below you prefer.
+
+**Option A - conda / miniforge (recommended, handles the Python version for you):**
 
 ```bash
-python3 --version
+conda create -n rkbx_wave python=3.10 -y
+conda activate rkbx_wave
+pip install -r requirements.txt
 ```
 
-If it is older than 3.10, install a newer one (e.g. `brew install python@3.10`,
-or from [python.org](https://www.python.org/downloads/macos/)). You can then
-use `python3.10` explicitly below.
+The launcher auto-detects a conda env named `rkbx_wave`, so you do not need to
+set anything else.
 
-From the repo root, create the venv with a 3.10+ interpreter:
+**Option B - venv (requires Python 3.10+ already installed):**
 
 ```bash
-python3.10 -m venv .venv      # or: python3 -m venv .venv (if python3 is >= 3.10)
+python3 --version            # must be 3.10 or newer
+python3 -m venv .venv         # or python3.10 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-The launcher uses `./.venv` by default and refuses to start if that interpreter
-is older than 3.10. To use a different interpreter (e.g. a conda env), set
-`RKBX_WAVE_PYTHON=/path/to/python` before running it.
+The launcher resolves Python in this order: `RKBX_WAVE_PYTHON` (if set) ->
+`./.venv` -> a conda env named `rkbx_wave`. It refuses to start on anything
+older than 3.10.
 
 ### 2. Re-sign Rekordbox
 
@@ -41,7 +45,14 @@ is older than 3.10. To use a different interpreter (e.g. a conda env), set
 re-signed with the `get-task-allow` entitlement. This is a one-time step and
 persists across reboots.
 
-Quit Rekordbox first, then:
+**Important:** macOS privacy protection blocks `codesign` from modifying app
+bundles unless your terminal has Full Disk Access. Before running the script,
+go to **System Settings > Privacy & Security > Full Disk Access**, enable your
+terminal app (Terminal or iTerm), then fully quit and reopen it. Without this
+the script fails at "Re-signing..." with `Operation not permitted`.
+
+Quit Rekordbox first (check Activity Monitor for `rekordbox` and
+`rekordboxAgent`), then:
 
 ```bash
 cd dist/rkbx_link
@@ -73,6 +84,11 @@ shuts both down when you close either one.
 - **"rkbx_link cannot be opened" (Gatekeeper)** - Clear the quarantine flag:
   ```bash
   xattr -dr com.apple.quarantine dist/rkbx_link/rkbx_link
+  ```
+- **"Address already in use" / endless "Connection refused"** - A previous
+  `rkbx_link` is still running. Kill it and try again:
+  ```bash
+  sudo pkill -x rkbx_link
   ```
 - **Need verbose logs** - Set `app.debug true` and `display.enabled true` in
   [dist/rkbx_link/config](dist/rkbx_link/config).

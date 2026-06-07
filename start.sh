@@ -91,8 +91,16 @@ echo "Starting rkbx_wave..."
 "$PY" "$SCRIPT_DIR/rkbx_wave.py" &
 WAVE_PID=$!
 
-# Give the listener a moment to bind before rkbx_link starts sending.
-sleep 1
+# Wait until rkbx_wave has actually bound the OSC port before starting rkbx_link,
+# so the link doesn't spam "connection refused" while Python/Tk is still loading.
+# Port 4460 matches osc_port in default_config.json and osc.destination in the
+# rkbx_link bundle config. Bail out early if the GUI dies during startup.
+OSC_PORT=4460
+for _ in $(seq 1 60); do
+    lsof -nP -iUDP:"$OSC_PORT" >/dev/null 2>&1 && break
+    kill -0 "$WAVE_PID" 2>/dev/null || break
+    sleep 0.5
+done
 
 # Start rkbx_link from its bundle dir so it finds ./config and ./data/offsets-macos.
 echo "Starting rkbx_link..."
