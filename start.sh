@@ -9,7 +9,8 @@
 # from rkbx_link before the listener is bound.
 #
 # Requirements (one-time, see SETUP_MACOS.md):
-#   - Python env at ./.venv (or set RKBX_WAVE_PYTHON to another interpreter)
+#   - A Python 3.10+ environment: either ./.venv, a conda env named
+#     "rkbx_wave", or one named via RKBX_WAVE_PYTHON
 #   - Rekordbox re-signed via dist/rkbx_link/resign_rekordbox.sh
 #
 # Usage: ./start.sh
@@ -21,8 +22,27 @@ LINK_DIR="$SCRIPT_DIR/dist/rkbx_link"
 LINK_BIN="$LINK_DIR/rkbx_link"
 OFFSETS="$LINK_DIR/data/offsets-macos"
 
-# Python interpreter: default to the project venv, allow override.
-PY="${RKBX_WAVE_PYTHON:-$SCRIPT_DIR/.venv/bin/python}"
+# Resolve the Python interpreter (first match wins):
+#   1. RKBX_WAVE_PYTHON override
+#   2. project venv at ./.venv
+#   3. a conda env named "rkbx_wave" in a common install location
+resolve_python() {
+    if [ -n "${RKBX_WAVE_PYTHON:-}" ]; then
+        echo "$RKBX_WAVE_PYTHON"; return
+    fi
+    if [ -x "$SCRIPT_DIR/.venv/bin/python" ]; then
+        echo "$SCRIPT_DIR/.venv/bin/python"; return
+    fi
+    local base
+    for base in "$HOME/miniforge3" "$HOME/mambaforge" "$HOME/miniconda3" "$HOME/anaconda3"; do
+        if [ -x "$base/envs/rkbx_wave/bin/python" ]; then
+            echo "$base/envs/rkbx_wave/bin/python"; return
+        fi
+    done
+    # No interpreter found; return the venv path for a helpful error message.
+    echo "$SCRIPT_DIR/.venv/bin/python"
+}
+PY="$(resolve_python)"
 
 # ---------------------------------------------------------------------------
 # Preflight checks
@@ -35,7 +55,7 @@ fail() {
 
 [ -x "$LINK_BIN" ] || fail "rkbx_link binary not found or not executable at: $LINK_BIN"
 [ -f "$OFFSETS" ] || fail "Rekordbox offsets not found at: $OFFSETS"
-[ -x "$PY" ] || fail "Python interpreter not found at: $PY (create ./.venv or set RKBX_WAVE_PYTHON)"
+[ -x "$PY" ] || fail "No Python found. Create ./.venv, a conda env named 'rkbx_wave', or set RKBX_WAVE_PYTHON. (tried: $PY)"
 
 # Require Python 3.10+ (pinned numpy/scipy and Pillow 12 have no older wheels).
 if ! "$PY" -c 'import sys; sys.exit(0 if sys.version_info[:2] >= (3, 10) else 1)' 2>/dev/null; then
@@ -53,8 +73,8 @@ cleanup() {
     trap - EXIT INT TERM
     [ -n "$KEEPALIVE_PID" ] && kill "$KEEPALIVE_PID" 2>/dev/null || true
     [ -n "$WAVE_PID" ] && kill "$WAVE_PID" 2>/dev/null || true
-    # rkbx_link runs as root; kill it with sudo by matching its path.
-    sudo pkill -f "$LINK_BIN" 2>/dev/null || true
+    # rkbx_link runs as root; kill it with sudo by exact process name.
+    sudo pkill -x rkbx_link 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
@@ -77,6 +97,10 @@ sleep 1
 # Start rkbx_link from its bundle dir so it finds ./config and ./data/offsets-macos.
 echo "Starting rkbx_link..."
 ( cd "$LINK_DIR" && exec sudo ./rkbx_link ) &
+LINK_PID=$!
 
-# Exit (and tear down everything) as soon as either process stops.
-wait -n
+# Tear down everything as soon as either process stops. macOS ships Bash 3.2,
+# which has no `wait -n`, so poll both PIDs instead.
+while kill -0 "$WAVE_PID" 2>/dev/null && kill -0 "$LINK_PID" 2>/dev/null; do
+    sleep 1
+done
