@@ -22,6 +22,11 @@ LINK_DIR="$SCRIPT_DIR/dist/rkbx_link"
 LINK_BIN="$LINK_DIR/rkbx_link"
 OFFSETS="$LINK_DIR/data/offsets-macos"
 
+# UDP ports: rkbx_wave listens on OSC_PORT; rkbx_link opens a source socket on
+# SRC_PORT. Both must be free before launch (matches the bundle config).
+OSC_PORT=4460
+SRC_PORT=4450
+
 # Resolve the Python interpreter (first match wins):
 #   1. RKBX_WAVE_PYTHON override
 #   2. project venv at ./.venv
@@ -69,12 +74,32 @@ fi
 WAVE_PID=""
 KEEPALIVE_PID=""
 
+# Return 0 while either UDP port is still held by some process.
+ports_in_use() {
+    lsof -nP -iUDP:"$OSC_PORT" -iUDP:"$SRC_PORT" >/dev/null 2>&1
+}
+
+# Stop any rkbx_wave/rkbx_link instances and wait for their ports to free up.
+# rkbx_link runs as root, so it needs sudo; rkbx_wave runs as the user. Escalate
+# to SIGKILL if a graceful stop does not release the ports. The [r] bracket keeps
+# pkill from matching unrelated text and never matches this launcher (bash start.sh).
+kill_all() {
+    sudo pkill -x rkbx_link 2>/dev/null || true
+    pkill -f "[r]kbx_wave.py" 2>/dev/null || true
+    local i
+    for i in $(seq 1 10); do
+        ports_in_use || return 0
+        sleep 0.5
+    done
+    sudo pkill -9 -x rkbx_link 2>/dev/null || true
+    pkill -9 -f "[r]kbx_wave.py" 2>/dev/null || true
+    sleep 0.5
+}
+
 cleanup() {
     trap - EXIT INT TERM
     [ -n "$KEEPALIVE_PID" ] && kill "$KEEPALIVE_PID" 2>/dev/null || true
-    [ -n "$WAVE_PID" ] && kill "$WAVE_PID" 2>/dev/null || true
-    # rkbx_link runs as root; kill it with sudo by exact process name.
-    sudo pkill -x rkbx_link 2>/dev/null || true
+    kill_all
 }
 trap cleanup EXIT INT TERM
 
@@ -86,6 +111,14 @@ sudo -v
 ( while true; do sudo -n true 2>/dev/null || exit; sleep 60; done ) &
 KEEPALIVE_PID=$!
 
+# Clear any leftovers from a previous run so the ports are free. This makes
+# repeated start/stop work without manual `pkill`/`lsof` cleanup.
+if ports_in_use; then
+    echo "Found leftover rkbx_wave/rkbx_link from a previous run; cleaning up..."
+    kill_all
+    ports_in_use && fail "Ports $OSC_PORT/$SRC_PORT are still in use by another process. Close it and retry."
+fi
+
 # Start rkbx_wave first so the OSC listener (127.0.0.1:4460) is bound.
 echo "Starting rkbx_wave..."
 "$PY" "$SCRIPT_DIR/rkbx_wave.py" &
@@ -93,9 +126,8 @@ WAVE_PID=$!
 
 # Wait until rkbx_wave has actually bound the OSC port before starting rkbx_link,
 # so the link doesn't spam "connection refused" while Python/Tk is still loading.
-# Port 4460 matches osc_port in default_config.json and osc.destination in the
+# OSC_PORT matches osc_port in default_config.json and osc.destination in the
 # rkbx_link bundle config. Bail out early if the GUI dies during startup.
-OSC_PORT=4460
 for _ in $(seq 1 60); do
     lsof -nP -iUDP:"$OSC_PORT" >/dev/null 2>&1 && break
     kill -0 "$WAVE_PID" 2>/dev/null || break
