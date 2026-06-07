@@ -27,6 +27,23 @@ OFFSETS="$LINK_DIR/data/offsets-macos"
 OSC_PORT=4460
 SRC_PORT=4450
 
+# Logs: one file per run (overwritten each launch) so "reproduce, then send me
+# logs/" yields the latest session. Child stdout/stderr is tee'd here too.
+LOG_DIR="$SCRIPT_DIR/logs"
+LAUNCHER_LOG="$LOG_DIR/launcher.log"
+WAVE_LOG="$LOG_DIR/rkbx_wave.log"
+LINK_LOG="$LOG_DIR/rkbx_link.log"
+mkdir -p "$LOG_DIR"
+: > "$LAUNCHER_LOG"
+
+# Timestamped logging to both the console and the launcher log.
+log() {
+    local msg
+    msg="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    echo "$msg"
+    echo "$msg" >> "$LAUNCHER_LOG"
+}
+
 # Resolve the Python interpreter (first match wins):
 #   1. RKBX_WAVE_PYTHON override
 #   2. project venv at ./.venv
@@ -53,8 +70,8 @@ PY="$(resolve_python)"
 # Preflight checks
 # ---------------------------------------------------------------------------
 fail() {
-    echo "Error: $1" >&2
-    echo "See SETUP_MACOS.md for setup instructions." >&2
+    log "ERROR: $1"
+    log "See SETUP_MACOS.md for setup instructions. Logs are in: $LOG_DIR"
     exit 1
 }
 
@@ -98,10 +115,14 @@ kill_all() {
 
 cleanup() {
     trap - EXIT INT TERM
+    log "Shutting down; stopping rkbx_wave and rkbx_link..."
     [ -n "$KEEPALIVE_PID" ] && kill "$KEEPALIVE_PID" 2>/dev/null || true
     kill_all
+    log "Stopped. Logs saved in: $LOG_DIR"
 }
 trap cleanup EXIT INT TERM
+
+log "Launcher starting. Logs: $LOG_DIR"
 
 # Cache sudo credentials once so the backgrounded rkbx_link does not need a TTY.
 echo "rkbx_link needs administrator access to read Rekordbox memory."
@@ -114,14 +135,16 @@ KEEPALIVE_PID=$!
 # Clear any leftovers from a previous run so the ports are free. This makes
 # repeated start/stop work without manual `pkill`/`lsof` cleanup.
 if ports_in_use; then
-    echo "Found leftover rkbx_wave/rkbx_link from a previous run; cleaning up..."
+    log "Found leftover rkbx_wave/rkbx_link from a previous run; cleaning up..."
     kill_all
     ports_in_use && fail "Ports $OSC_PORT/$SRC_PORT are still in use by another process. Close it and retry."
 fi
 
 # Start rkbx_wave first so the OSC listener (127.0.0.1:4460) is bound.
-echo "Starting rkbx_wave..."
-"$PY" "$SCRIPT_DIR/rkbx_wave.py" &
+# tee mirrors output to both the console and the per-process log for debugging.
+log "Starting rkbx_wave..."
+: > "$WAVE_LOG"
+"$PY" "$SCRIPT_DIR/rkbx_wave.py" 2>&1 | tee -a "$WAVE_LOG" &
 WAVE_PID=$!
 
 # Wait until rkbx_wave has actually bound the OSC port before starting rkbx_link,
@@ -135,8 +158,9 @@ for _ in $(seq 1 60); do
 done
 
 # Start rkbx_link from its bundle dir so it finds ./config and ./data/offsets-macos.
-echo "Starting rkbx_link..."
-( cd "$LINK_DIR" && exec sudo ./rkbx_link ) &
+log "Starting rkbx_link..."
+: > "$LINK_LOG"
+( cd "$LINK_DIR" && exec sudo ./rkbx_link ) 2>&1 | tee -a "$LINK_LOG" &
 LINK_PID=$!
 
 # Tear down everything as soon as either process stops. macOS ships Bash 3.2,

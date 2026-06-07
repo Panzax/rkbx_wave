@@ -85,11 +85,17 @@ shuts both down when you close either one.
   ```bash
   xattr -dr com.apple.quarantine dist/rkbx_link/rkbx_link
   ```
-- **"Address already in use" / endless "Connection refused"** - A previous
-  `rkbx_link` is still running. Kill it and try again:
+- **"Address already in use" / endless "Connection refused"** - `start.sh` now
+  clears leftover processes automatically on each launch, so just run it again.
+  If a non-rkbx app is holding the port, the launcher will say so; otherwise you
+  can still force a manual cleanup:
   ```bash
   sudo pkill -x rkbx_link
   ```
+- **Something went wrong - where are the logs?** - Each run writes to the `logs/`
+  folder next to `start.sh`: `launcher.log` (startup/shutdown steps),
+  `rkbx_wave.log` (GUI output), and `rkbx_link.log` (Rekordbox/OSC output). They
+  are overwritten on every launch, so reproduce the issue, then send these files.
 - **Need verbose logs** - Set `app.debug true` and `display.enabled true` in
   [dist/rkbx_link/config](dist/rkbx_link/config).
 

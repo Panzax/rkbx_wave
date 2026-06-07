@@ -1,5 +1,6 @@
 rkbx_wavw_venv/
 .venv/
+logs/
 rb_waveform_lab/__pycache__/
 rb_waveform_core/__pycache__/
 TEST/
